@@ -1,0 +1,31 @@
+{
+  "name": "Life Adventure Simulator Premium",
+  "short_name": "Life Adventure",
+  "description": "Premium life simulation game with careers, business, relationships, crime, and adventure",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f2027",
+  "theme_color": "#0f2027",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/images/icons/coin.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/images/icons/coin.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["games", "entertainment", "simulation"],
+  "screenshots": [
+    {
+      "src": "assets/images/screenshots/screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Game Home Screen"
+    }
+  ]
+}
