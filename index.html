@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Adventure Simulator - Build Your Virtual Life</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-gamepad"></i>
+                <h1>Life Adventure Simulator</h1>
+            </div>
+            <div class="player-stats">
+                <div class="stat">
+                    <i class="fas fa-coins"></i>
+                    <span id="money">$10,000</span>
+                </div>
+                <div class="stat">
+                    <i class="fas fa-heart"></i>
+                    <span id="health">100</span>
+                </div>
+                <div class="stat">
+                    <i class="fas fa-brain"></i>
+                    <span id="intelligence">50</span>
+                </div>
+                <div class="stat">
+                    <i class="fas fa-users"></i>
+                    <span id="reputation">50</span>
+                </div>
+                <div class="stat">
+                    <i class="fas fa-user"></i>
+                    <span id="age">18</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Game Area -->
+        <main class="main-content">
+            <!-- Left Panel - Character & Actions -->
+            <div class="left-panel">
+                <div class="character-section">
+                    <div class="character-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="character-info">
+                        <h2 id="player-name">Alex Johnson</h2>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="happiness-bar" style="width: 70%;"></div>
+                            <span>Happiness: <span id="happiness">70</span>/100</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="energy-bar" style="width: 85%;"></div>
+                            <span>Energy: <span id="energy">85</span>/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-section">
+                    <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                    <div class="actions-grid">
+                        <button class="action-btn" data-action="work">
+                            <i class="fas fa-briefcase"></i> Work
+                        </button>
+                        <button class="action-btn" data-action="study">
+                            <i class="fas fa-graduation-cap"></i> Study
+                        </button>
+                        <button class="action-btn" data-action="socialize">
+                            <i class="fas fa-users"></i> Socialize
+                        </button>
+                        <button class="action-btn" data-action="rest">
+                            <i class="fas fa-bed"></i> Rest
+                        </button>
+                        <button class="action-btn" data-action="gamble">
+                            <i class="fas fa-dice"></i> Gamble
+                        </button>
+                        <button class="action-btn" data-action="crime">
+                            <i class="fas fa-mask"></i> Crime
+                        </button>
+                    </div>
+                </div>
+
+                <div class="inventory-section">
+                    <h3><i class="fas fa-box"></i> Inventory</h3>
+                    <div class="inventory-items" id="inventory">
+                        <!-- Items will be added here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Panel - Game Content -->
+            <div class="center-panel">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="home">Home</button>
+                    <button class="tab-btn" data-tab="city">City</button>
+                    <button class="tab-btn" data-tab="business">Business</button>
+                    <button class="tab-btn" data-tab="relationships">Relationships</button>
+                    <button class="tab-btn" data-tab="bank">Bank</button>
+                    <button class="tab-btn" data-tab="crime">Crime</button>
+                </div>
+
+                <div class="tab-content active" id="home-tab">
+                    <h2><i class="fas fa-home"></i> Your Home</h2>
+                    <div class="home-content">
+                        <div class="home-upgrade">
+                            <h3>Current Home: Apartment</h3>
+                            <p>Comfort: 30/100</p>
+                            <button class="upgrade-btn" data-upgrade="home">Upgrade Home ($50,000)</button>
+                        </div>
+                        <div class="family-section">
+                            <h3>Family Members</h3>
+                            <div id="family-members"></div>
+                            <button class="action-btn" data-action="marry">Get Married ($20,000)</button>
+                            <button class="action-btn" data-action="child">Have Child ($10,000)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="city-tab">
+                    <h2><i class="fas fa-city"></i> City Explorer</h2>
+                    <div class="city-grid">
+                        <div class="city-location" data-location="casino">
+                            <i class="fas fa-dice"></i>
+                            <h4>Casino</h4>
+                            <p>Try your luck</p>
+                        </div>
+                        <div class="city-location" data-location="dealership">
+                            <i class="fas fa-car"></i>
+                            <h4>Car Dealership</h4>
+                            <p>Buy vehicles</p>
+                        </div>
+                        <div class="city-location" data-location="mall">
+                            <i class="fas fa-shopping-cart"></i>
+                            <h4>Shopping Mall</h4>
+                            <p>Buy items</p>
+                        </div>
+                        <div class="city-location" data-location="gym">
+                            <i class="fas fa-dumbbell"></i>
+                            <h4>Gym</h4>
+                            <p>Improve health</p>
+                        </div>
+                        <div class="city-location" data-location="college">
+                            <i class="fas fa-university"></i>
+                            <h4>College</h4>
+                            <p>Get educated</p>
+                        </div>
+                        <div class="city-location" data-location="nightclub">
+                            <i class="fas fa-music"></i>
+                            <h4>Night Club</h4>
+                            <p>Socialize</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="business-tab">
+                    <h2><i class="fas fa-chart-line"></i> Business & Investments</h2>
+                    <div class="business-content">
+                        <div class="business-list" id="businesses"></div>
+                        <div class="investment-options">
+                            <h3>Available Businesses</h3>
+                            <div class="investments-grid" id="investment-options"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="relationships-tab">
+                    <h2><i class="fas fa-heart"></i> Relationships</h2>
+                    <div class="relationships-content">
+                        <div class="relationships-list" id="relationships"></div>
+                        <button class="action-btn" data-action="date">Go on Date ($500)</button>
+                        <button class="action-btn" data-action="meet">Meet New People</button>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="bank-tab">
+                    <h2><i class="fas fa-university"></i> Bank & Finance</h2>
+                    <div class="bank-content">
+                        <div class="bank-info">
+                            <p>Cash: <span id="cash-amount">$10,000</span></p>
+                            <p>Bank Balance: <span id="bank-balance">$0</span></p>
+                            <p>Loan: <span id="loan-amount">$0</span></p>
+                        </div>
+                        <div class="bank-actions">
+                            <input type="number" id="bank-amount" placeholder="Amount" min="1">
+                            <button class="bank-btn" data-action="deposit">Deposit</button>
+                            <button class="bank-btn" data-action="withdraw">Withdraw</button>
+                            <button class="bank-btn" data-action="loan">Take Loan</button>
+                            <button class="bank-btn" data-action="repay">Repay Loan</button>
+                        </div>
+                        <div class="investment-section">
+                            <h3>Stock Market</h3>
+                            <div class="stocks-grid" id="stocks"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="crime-tab">
+                    <h2><i class="fas fa-mask"></i> Crime World</h2>
+                    <div class="crime-content">
+                        <div class="warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Warning: Crime affects your reputation and may lead to jail time!</p>
+                        </div>
+                        <div class="crime-options">
+                            <div class="crime-option" data-crime="petty">
+                                <h4>Petty Theft</h4>
+                                <p>Risk: Low | Reward: $500 - $2,000</p>
+                                <button class="crime-btn">Commit</button>
+                            </div>
+                            <div class="crime-option" data-crime="bank">
+                                <h4>Bank Robbery</h4>
+                                <p>Risk: High | Reward: $10,000 - $50,000</p>
+                                <button class="crime-btn">Commit</button>
+                            </div>
+                            <div class="crime-option" data-crime="heist">
+                                <h4>Big Heist</h4>
+                                <p>Risk: Very High | Reward: $100,000+</p>
+                                <button class="crime-btn">Commit</button>
+                            </div>
+                        </div>
+                        <div class="jail-status">
+                            <h3>Jail Status: <span id="jail-time">0 days</span></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Notifications & Vehicles -->
+            <div class="right-panel">
+                <div class="notifications-section">
+                    <h3><i class="fas fa-bell"></i> Notifications</h3>
+                    <div class="notifications-list" id="notifications"></div>
+                </div>
+
+                <div class="vehicles-section">
+                    <h3><i class="fas fa-car"></i> Your Vehicles</h3>
+                    <div class="vehicles-list" id="vehicles"></div>
+                    <button class="action-btn" data-action="buy-car">Buy New Vehicle</button>
+                </div>
+
+                <div class="properties-section">
+                    <h3><i class="fas fa-building"></i> Your Properties</h3>
+                    <div class="properties-list" id="properties"></div>
+                    <button class="action-btn" data-action="buy-property">Buy Property</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Game Log -->
+        <div class="game-log">
+            <h3><i class="fas fa-scroll"></i> Game Log</h3>
+            <div class="log-content" id="game-log"></div>
+        </div>
+
+        <!-- Mobile Bottom Navigation -->
+        <div class="mobile-nav">
+            <button class="mobile-nav-btn" data-tab="home"><i class="fas fa-home"></i></button>
+            <button class="mobile-nav-btn" data-tab="city"><i class="fas fa-city"></i></button>
+            <button class="mobile-nav-btn" data-tab="bank"><i class="fas fa-university"></i></button>
+            <button class="mobile-nav-btn" data-tab="business"><i class="fas fa-chart-line"></i></button>
+            <button class="mobile-nav-btn" data-tab="relationships"><i class="fas fa-heart"></i></button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="car-modal">
+        <div class="modal-content">
+            <h2>Car Dealership</h2>
+            <div class="cars-grid" id="cars-list"></div>
+            <button class="close-modal">Close</button>
+        </div>
+    </div>
+
+    <div class="modal" id="property-modal">
+        <div class="modal-content">
+            <h2>Real Estate</h2>
+            <div class="properties-grid" id="properties-list"></div>
+            <button class="close-modal">Close</button>
+        </div>
+    </div>
+
+    <div class="modal" id="event-modal">
+        <div class="modal-content">
+            <h2 id="event-title">Event</h2>
+            <p id="event-description"></p>
+            <div class="event-choices" id="event-choices"></div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="game-state.js"></script>
+    <script src="game.js"></script>
+    <script src="script.js"></script>
+</body>
+      </html>
