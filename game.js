@@ -1,700 +1,610 @@
-import GameData from './data.js';
 import gameState from './game-state.js';
+import { gameData, GAME_SETTINGS } from './data.js';
 
-// DOM Elements
-let elements = {};
-
-// Initialize game
-class Game {
+class LifeAdventureGame {
     constructor() {
-        this.initializeElements();
-        this.setupEventListeners();
-        this.loadGame();
-        this.updateUI();
+        this.gameActive = false;
+        this.gameLoopInterval = null;
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.loadGameData();
         this.startGameLoop();
+        this.gameActive = true;
+        
+        // Hide loading screen after 2 seconds
+        setTimeout(() => {
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+            gameState.showNotification('Welcome to Life Odyssey! Start your adventure.', 'success');
+            
+            // Play background music if user interacts
+            document.addEventListener('click', () => {
+                const bgMusic = document.getElementById('bg-music');
+                if (bgMusic.paused) {
+                    bgMusic.volume = 0.3;
+                    bgMusic.play().catch(e => console.log('Autoplay prevented'));
+                }
+            }, { once: true });
+        }, 2000);
     }
-
-    // Cache DOM elements
-    initializeElements() {
-        elements = {
-            // Stats
-            money: document.getElementById('money'),
-            health: document.getElementById('health'),
-            intelligence: document.getElementById('intelligence'),
-            reputation: document.getElementById('reputation'),
-            age: document.getElementById('age'),
-            happiness: document.getElementById('happiness'),
-            energy: document.getElementById('energy'),
-            happinessBar: document.getElementById('happiness-bar'),
-            energyBar: document.getElementById('energy-bar'),
-            
-            // Tabs
-            tabBtns: document.querySelectorAll('.tab-btn'),
-            tabContents: document.querySelectorAll('.tab-content'),
-            
-            // Lists
-            inventory: document.getElementById('inventory'),
-            familyMembers: document.getElementById('family-members'),
-            businesses: document.getElementById('businesses'),
-            relationships: document.getElementById('relationships'),
-            notifications: document.getElementById('notifications'),
-            vehicles: document.getElementById('vehicles'),
-            properties: document.getElementById('properties'),
-            gameLog: document.getElementById('game-log'),
-            
-            // Bank
-            cashAmount: document.getElementById('cash-amount'),
-            bankBalance: document.getElementById('bank-balance'),
-            loanAmount: document.getElementById('loan-amount'),
-            bankAmount: document.getElementById('bank-amount'),
-            
-            // Modals
-            modals: document.querySelectorAll('.modal'),
-            carModal: document.getElementById('car-modal'),
-            propertyModal: document.getElementById('property-modal'),
-            eventModal: document.getElementById('event-modal')
-        };
-    }
-
-    // Setup event listeners
-    setupEventListeners() {
-        // Tab switching
-        elements.tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+    
+    bindEvents() {
+        // Navigation buttons
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.switchSection(btn.dataset.section));
         });
-
+        
         // Action buttons
         document.querySelectorAll('.action-btn').forEach(btn => {
             btn.addEventListener('click', () => this.handleAction(btn.dataset.action));
         });
-
-        // City locations
-        document.querySelectorAll('.city-location').forEach(location => {
-            location.addEventListener('click', () => this.handleCityLocation(location.dataset.location));
+        
+        // Relation buttons
+        document.querySelectorAll('.relation-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.handleRelation(btn.dataset.relation));
         });
-
-        // Crime buttons
-        document.querySelectorAll('.crime-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const crimeOption = e.target.closest('.crime-option');
-                if (crimeOption) {
-                    this.handleCrime(crimeOption.dataset.crime);
+        
+        // Sound controls
+        document.addEventListener('click', () => {
+            const clickSound = document.getElementById('click-sound');
+            clickSound.currentTime = 0;
+            clickSound.play().catch(e => console.log('Sound play prevented'));
+        });
+    }
+    
+    switchSection(sectionId) {
+        // Hide all sections
+        document.querySelectorAll('.game-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // Remove active class from all nav buttons
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Show selected section and activate nav button
+        document.getElementById(`${sectionId}-section`).classList.add('active');
+        document.querySelector(`.nav-btn[data-section="${sectionId}"]`).classList.add('active');
+        
+        // Load section-specific data
+        this.loadSectionData(sectionId);
+    }
+    
+    loadSectionData(sectionId) {
+        switch(sectionId) {
+            case 'home':
+                gameState.updateEventsUI();
+                break;
+            case 'work':
+                this.loadJobs();
+                this.updateCurrentJob();
+                break;
+            case 'economy':
+                this.loadInvestments();
+                this.updateAssets();
+                break;
+            case 'family':
+                this.loadFamily();
+                break;
+            case 'dreams':
+                this.loadDreams();
+                this.loadAchievements();
+                break;
+        }
+    }
+    
+    loadGameData() {
+        // Initial UI update
+        gameState.updateUI();
+        gameState.updateEventsUI();
+    }
+    
+    startGameLoop() {
+        this.gameLoopInterval = setInterval(() => {
+            this.gameTick();
+        }, GAME_SETTINGS.tickInterval);
+    }
+    
+    gameTick() {
+        // Update game time
+        gameState.updateGameTime();
+        
+        // Natural stat changes
+        gameState.state.player.energy = Math.max(0, gameState.state.player.energy - 5);
+        gameState.state.player.health = Math.max(0, gameState.state.player.health - 1);
+        gameState.state.player.social = Math.max(0, gameState.state.player.social - 2);
+        
+        // Random events
+        if (Math.random() < 0.3) {
+            this.generateRandomEvent();
+        }
+        
+        // Update UI
+        gameState.updateUI();
+    }
+    
+    generateRandomEvent() {
+        const events = [
+            {
+                title: 'Unexpected Bonus',
+                description: 'You received a bonus at work!',
+                money: 500,
+                probability: 0.2
+            },
+            {
+                title: 'Medical Bill',
+                description: 'Unexpected health expense',
+                money: -300,
+                probability: 0.15
+            },
+            {
+                title: 'Investment Opportunity',
+                description: 'Special investment offer available',
+                probability: 0.25
+            },
+            {
+                title: 'Social Invitation',
+                description: 'Friends invited you to an event',
+                social: 10,
+                probability: 0.2
+            },
+            {
+                title: 'Learning Opportunity',
+                description: 'Free online course available',
+                intelligence: 5,
+                probability: 0.2
+            }
+        ];
+        
+        const event = events.find(e => Math.random() < e.probability);
+        if (event) {
+            if (event.money) gameState.addMoney(event.money);
+            if (event.social) gameState.state.player.social = Math.min(100, gameState.state.player.social + event.social);
+            if (event.intelligence) gameState.addIntelligence(event.intelligence);
+            
+            gameState.addEvent(event.title, event.description);
+            gameState.showNotification(event.title, event.money > 0 ? 'success' : 'error');
+        }
+    }
+    
+    handleAction(action) {
+        switch(action) {
+            case 'rest':
+                if (gameState.state.player.energy < 100) {
+                    gameState.state.player.energy = Math.min(100, gameState.state.player.energy + 30);
+                    gameState.state.player.health = Math.min(100, gameState.state.player.health + 5);
+                    gameState.addEvent('You rested and recovered energy');
+                    gameState.showNotification('Energy restored!', 'success');
+                }
+                break;
+                
+            case 'study':
+                if (gameState.state.player.energy >= 20) {
+                    gameState.state.player.energy -= 20;
+                    gameState.addIntelligence(5);
+                    gameState.addEvent('Studied and gained knowledge');
+                    gameState.showNotification('Intelligence increased!', 'success');
+                } else {
+                    gameState.showNotification('Not enough energy to study', 'error');
+                }
+                break;
+                
+            case 'socialize':
+                if (gameState.state.player.energy >= 15 && gameState.state.player.money >= 50) {
+                    gameState.state.player.energy -= 15;
+                    gameState.addMoney(-50);
+                    gameState.state.player.social = Math.min(100, gameState.state.player.social + 15);
+                    gameState.state.player.happiness = Math.min(100, gameState.state.player.happiness + 10);
+                    gameState.addEvent('Socialized with friends');
+                    gameState.showNotification('Social connections improved!', 'success');
+                } else {
+                    gameState.showNotification('Need energy and money to socialize', 'error');
+                }
+                break;
+                
+            case 'exercise':
+                if (gameState.state.player.energy >= 25) {
+                    gameState.state.player.energy -= 25;
+                    gameState.addHealth(10);
+                    gameState.state.player.happiness = Math.min(100, gameState.state.player.happiness + 5);
+                    gameState.addEvent('Exercised and improved health');
+                    gameState.showNotification('Health improved!', 'success');
+                } else {
+                    gameState.showNotification('Not enough energy to exercise', 'error');
+                }
+                break;
+        }
+        
+        gameState.updateUI();
+    }
+    
+    loadJobs() {
+        const jobList = document.getElementById('job-list');
+        jobList.innerHTML = '';
+        
+        gameData.jobs.forEach(job => {
+            const jobElement = document.createElement('div');
+            jobElement.className = 'job-card';
+            jobElement.innerHTML = `
+                <div class="job-header">
+                    <div class="job-title">
+                        <i class="${job.icon}"></i>
+                        ${job.title}
+                    </div>
+                    <div class="job-salary">$${gameState.formatNumber(job.salary)}/month</div>
+                </div>
+                <div class="job-requirements">${job.description}</div>
+                <div class="job-details">
+                    <small>Requirements: Age ${job.requirements.age}, Intelligence ${job.requirements.intelligence}</small>
+                </div>
+                <button class="job-apply" data-job-id="${job.id}">Apply Now</button>
+            `;
+            
+            jobList.appendChild(jobElement);
+            
+            // Add event listener to apply button
+            jobElement.querySelector('.job-apply').addEventListener('click', () => {
+                if (gameState.applyForJob(job)) {
+                    this.updateCurrentJob();
+                    this.loadJobs(); // Refresh job list
                 }
             });
         });
-
-        // Bank buttons
-        document.querySelectorAll('.bank-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.handleBankAction(btn.dataset.action));
-        });
-
-        // Close modals
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', () => this.closeModals());
-        });
-
-        // Mobile navigation
-        document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
-        });
-
-        // Save/Load buttons
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 's') {
-                e.preventDefault();
-                gameState.save();
-            }
-            if (e.ctrlKey && e.key === 'l') {
-                e.preventDefault();
-                gameState.load();
-                this.updateUI();
-            }
-        });
-
-        // Auto-save every minute
-        setInterval(() => {
-            gameState.save();
-        }, 60000);
     }
-
-    // Load game from localStorage
-    loadGame() {
-        gameState.load();
-    }
-
-    // Update all UI elements
-    updateUI() {
-        this.updateStats();
-        this.updateInventory();
-        this.updateFamily();
-        this.updateBusinesses();
-        this.updateRelationships();
-        this.updateNotifications();
-        this.updateVehicles();
-        this.updateProperties();
-        this.updateBank();
-        this.updateGameLog();
-        this.updateProgressBars();
-    }
-
-    // Update stats display
-    updateStats() {
-        const stats = gameState.stats;
+    
+    updateCurrentJob() {
+        const currentJobDiv = document.getElementById('current-job');
+        const job = gameState.state.career.currentJob;
         
-        elements.money.textContent = `$${stats.money.toLocaleString()}`;
-        elements.health.textContent = stats.health;
-        elements.intelligence.textContent = stats.intelligence;
-        elements.reputation.textContent = stats.reputation;
-        elements.age.textContent = stats.age;
-        elements.happiness.textContent = stats.happiness;
-        elements.energy.textContent = stats.energy;
-        
-        elements.cashAmount.textContent = `$${stats.money.toLocaleString()}`;
-        elements.bankBalance.textContent = `$${stats.bankBalance.toLocaleString()}`;
-        elements.loanAmount.textContent = `$${stats.loan.toLocaleString()}`;
-    }
-
-    // Update progress bars
-    updateProgressBars() {
-        const stats = gameState.stats;
-        
-        elements.happinessBar.style.width = `${stats.happiness}%`;
-        elements.energyBar.style.width = `${stats.energy}%`;
-    }
-
-    // Update inventory display
-    updateInventory() {
-        const inventory = gameState.inventory;
-        elements.inventory.innerHTML = '';
-        
-        if (inventory.length === 0) {
-            elements.inventory.innerHTML = '<div class="inventory-item">Empty</div>';
-            return;
-        }
-        
-        inventory.forEach(item => {
-            const itemElement = document.createElement('div');
-            itemElement.className = 'inventory-item';
-            itemElement.innerHTML = `
-                <strong>${item.name}</strong>
-                <div>$${item.price.toLocaleString()}</div>
+        if (job) {
+            currentJobDiv.innerHTML = `
+                <div class="job-header">
+                    <div class="job-title">
+                        <i class="${job.icon}"></i>
+                        ${job.title}
+                    </div>
+                    <div class="job-salary">$${gameState.formatNumber(job.salary)}/month</div>
+                </div>
+                <div class="job-requirements">${job.description}</div>
+                <div class="job-details">
+                    <small>Next salary in ${30 - gameState.state.gameTime.day} days</small>
+                </div>
             `;
-            elements.inventory.appendChild(itemElement);
+        } else {
+            currentJobDiv.innerHTML = `<p>No job selected. Apply for a job to start earning!</p>`;
+        }
+    }
+    
+    loadInvestments() {
+        const investmentList = document.getElementById('investment-list');
+        investmentList.innerHTML = '';
+        
+        gameData.investments.forEach(investment => {
+            const investmentElement = document.createElement('div');
+            investmentElement.className = 'investment-card';
+            investmentElement.innerHTML = `
+                <div class="investment-header">
+                    <div class="investment-title">
+                        <i class="${investment.icon}"></i>
+                        ${investment.title}
+                    </div>
+                    <div class="investment-return">${investment.return}% return</div>
+                </div>
+                <div class="investment-details">${investment.description}</div>
+                <div class="investment-info">
+                    <small>Min: $${gameState.formatNumber(investment.minAmount)} | Risk: ${investment.risk}</small>
+                </div>
+                <button class="investment-buy" data-investment-id="${investment.id}">Invest</button>
+            `;
+            
+            investmentList.appendChild(investmentElement);
+            
+            // Add event listener to invest button
+            investmentElement.querySelector('.investment-buy').addEventListener('click', () => {
+                this.showInvestmentModal(investment);
+            });
         });
     }
-
-    // Update family display
-    updateFamily() {
-        const family = gameState.family;
-        elements.familyMembers.innerHTML = '';
+    
+    showInvestmentModal(investment) {
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Invest in ${investment.title}</h3>
+                <p>${investment.description}</p>
+                <p>Expected return: ${investment.return}% annually</p>
+                <p>Risk level: ${investment.risk}</p>
+                <div class="modal-input">
+                    <label>Investment Amount (min: $${gameState.formatNumber(investment.minAmount)})</label>
+                    <input type="number" id="investment-amount" value="${investment.minAmount}" min="${investment.minAmount}" max="${gameState.state.player.money}">
+                </div>
+                <div class="modal-buttons">
+                    <button class="modal-cancel">Cancel</button>
+                    <button class="modal-confirm">Confirm Investment</button>
+                </div>
+            </div>
+        `;
         
-        if (family.length === 0) {
-            elements.familyMembers.innerHTML = '<p>No family members</p>';
-            return;
-        }
+        document.body.appendChild(modal);
         
-        family.forEach(member => {
+        // Add event listeners
+        modal.querySelector('.modal-cancel').addEventListener('click', () => modal.remove());
+        modal.querySelector('.modal-confirm').addEventListener('click', () => {
+            const amount = parseInt(document.getElementById('investment-amount').value);
+            if (amount >= investment.minAmount && gameState.makeInvestment(investment, amount)) {
+                modal.remove();
+                this.loadInvestments();
+            }
+        });
+        
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+    
+    updateAssets() {
+        const assetsGrid = document.querySelector('.assets-grid');
+        assetsGrid.innerHTML = '';
+        
+        gameState.state.assets.forEach(asset => {
+            const assetElement = document.createElement('div');
+            assetElement.className = 'asset-card';
+            assetElement.innerHTML = `
+                <i class="${asset.icon}"></i>
+                <span>${asset.name}</span>
+                <small>Value: $${gameState.formatNumber(asset.value)}</small>
+            `;
+            assetsGrid.appendChild(assetElement);
+        });
+        
+        // Add buy asset button
+        const buyAssetCard = document.createElement('div');
+        buyAssetCard.className = 'asset-card buy-asset';
+        buyAssetCard.innerHTML = `
+            <i class="fas fa-plus-circle"></i>
+            <span>Buy New Asset</span>
+            <small>Expand your portfolio</small>
+        `;
+        buyAssetCard.addEventListener('click', () => this.showAssetStore());
+        assetsGrid.appendChild(buyAssetCard);
+    }
+    
+    showAssetStore() {
+        const assets = [
+            { name: 'Better Car', value: 35000, icon: 'fas fa-car' },
+            { name: 'Larger Apartment', value: 120000, icon: 'fas fa-home' },
+            { name: 'Laptop', value: 1500, icon: 'fas fa-laptop' },
+            { name: 'Stocks Bundle', value: 10000, icon: 'fas fa-chart-line' }
+        ];
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Asset Store</h3>
+                <div class="store-items">
+                    ${assets.map(asset => `
+                        <div class="store-item">
+                            <i class="${asset.icon}"></i>
+                            <div>
+                                <h4>${asset.name}</h4>
+                                <p>$${gameState.formatNumber(asset.value)}</p>
+                            </div>
+                            <button class="buy-btn" data-asset='${JSON.stringify(asset)}'>Buy</button>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="modal-cancel">Close</button>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add buy functionality
+        modal.querySelectorAll('.buy-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const asset = JSON.parse(btn.dataset.asset);
+                if (gameState.canAfford(asset.value)) {
+                    gameState.addMoney(-asset.value);
+                    gameState.state.assets.push(asset);
+                    gameState.addEvent(`Purchased ${asset.name}`);
+                    gameState.showNotification(`Purchased ${asset.name}!`, 'success');
+                    this.updateAssets();
+                    modal.remove();
+                } else {
+                    gameState.showNotification('Insufficient funds', 'error');
+                }
+            });
+        });
+        
+        modal.querySelector('.modal-cancel').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+    
+    loadFamily() {
+        const familyMembers = document.getElementById('family-members');
+        familyMembers.innerHTML = '';
+        
+        gameState.state.family.forEach(member => {
             const memberElement = document.createElement('div');
             memberElement.className = 'family-member';
             memberElement.innerHTML = `
-                <strong>${member.name}</strong>
-                <div>${member.relation}</div>
+                <div class="member-avatar">
+                    <i class="${member.icon}"></i>
+                </div>
+                <div class="member-name">${member.name}</div>
+                <div class="member-relation">${member.relation}</div>
+                <div class="member-happiness">Happiness: ${member.happiness}%</div>
             `;
-            elements.familyMembers.appendChild(memberElement);
+            familyMembers.appendChild(memberElement);
         });
-    }
-
-    // Update businesses display
-    updateBusinesses() {
-        const businesses = gameState.businesses;
-        elements.businesses.innerHTML = '';
         
-        if (businesses.length === 0) {
-            elements.businesses.innerHTML = '<p>No businesses</p>';
-            return;
+        // Add add family member button if less than 5
+        if (gameState.state.family.length < 5) {
+            const addMember = document.createElement('div');
+            addMember.className = 'family-member add-member';
+            addMember.innerHTML = `
+                <div class="member-avatar">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <div class="member-name">Add Member</div>
+                <div class="member-relation">Expand Family</div>
+            `;
+            addMember.addEventListener('click', () => this.addFamilyMember());
+            familyMembers.appendChild(addMember);
         }
-        
-        businesses.forEach(business => {
-            const businessElement = document.createElement('div');
-            businessElement.className = 'investment-option';
-            businessElement.innerHTML = `
-                <h4>${business.name}</h4>
-                <p>Income: $${business.income.toLocaleString()}/month</p>
-                <p>Risk: ${business.risk}%</p>
-            `;
-            elements.businesses.appendChild(businessElement);
-        });
     }
-
-    // Update relationships display
-    updateRelationships() {
-        const relationships = gameState.relationships;
-        elements.relationships.innerHTML = '';
+    
+    addFamilyMember() {
+        const relations = ['Partner', 'Child', 'Parent', 'Sibling', 'Friend'];
+        const names = ['Emma', 'James', 'Sophia', 'Michael', 'Olivia', 'William', 'Ava', 'Alexander'];
         
-        if (relationships.length === 0) {
-            elements.relationships.innerHTML = '<p>No relationships</p>';
-            return;
-        }
+        const newMember = {
+            id: Date.now(),
+            name: names[Math.floor(Math.random() * names.length)],
+            relation: relations[Math.floor(Math.random() * relations.length)],
+            happiness: 80,
+            icon: Math.random() > 0.5 ? 'fas fa-male' : 'fas fa-female'
+        };
         
-        relationships.forEach(rel => {
-            const relElement = document.createElement('div');
-            relElement.className = 'relationship-item';
-            relElement.innerHTML = `
-                <strong>${rel.name}</strong>
-                <div>Status: ${rel.status}</div>
-            `;
-            elements.relationships.appendChild(relElement);
-        });
+        gameState.state.family.push(newMember);
+        gameState.addEvent(`New family member: ${newMember.name} (${newMember.relation})`);
+        gameState.showNotification('Family expanded!', 'success');
+        this.loadFamily();
     }
-
-    // Update notifications
-    updateNotifications() {
-        const notifications = gameState.notifications;
-        elements.notifications.innerHTML = '';
-        
-        notifications.forEach(notification => {
-            const notifElement = document.createElement('div');
-            notifElement.className = `notification ${notification.type}`;
-            notifElement.innerHTML = notification.message;
-            elements.notifications.appendChild(notifElement);
-        });
-    }
-
-    // Update vehicles
-    updateVehicles() {
-        const vehicles = gameState.vehicles;
-        elements.vehicles.innerHTML = '';
-        
-        if (vehicles.length === 0) {
-            elements.vehicles.innerHTML = '<p>No vehicles</p>';
-            return;
-        }
-        
-        vehicles.forEach(vehicle => {
-            const vehicleElement = document.createElement('div');
-            vehicleElement.className = 'inventory-item';
-            vehicleElement.innerHTML = `
-                <strong>${vehicle.name}</strong>
-                <div>Speed: ${vehicle.speed}</div>
-            `;
-            elements.vehicles.appendChild(vehicleElement);
-        });
-    }
-
-    // Update properties
-    updateProperties() {
-        const properties = gameState.properties;
-        elements.properties.innerHTML = '';
-        
-        if (properties.length === 0) {
-            elements.properties.innerHTML = '<p>No properties</p>';
-            return;
-        }
-        
-        properties.forEach(property => {
-            const propertyElement = document.createElement('div');
-            propertyElement.className = 'inventory-item';
-            propertyElement.innerHTML = `
-                <strong>${property.name}</strong>
-                <div>Comfort: ${property.comfort}</div>
-            `;
-            elements.properties.appendChild(propertyElement);
-        });
-    }
-
-    // Update bank info
-    updateBank() {
-        const stats = gameState.stats;
-        elements.bankBalance.textContent = `$${stats.bankBalance.toLocaleString()}`;
-        elements.loanAmount.textContent = `$${stats.loan.toLocaleString()}`;
-    }
-
-    // Update game log
-    updateGameLog() {
-        const gameLog = gameState.gameLog;
-        elements.gameLog.innerHTML = '';
-        
-        gameLog.forEach(log => {
-            const logElement = document.createElement('div');
-            logElement.className = 'log-entry';
-            logElement.innerHTML = `
-                <span class="log-time">${log.time}</span>
-                <span class="log-message">${log.message}</span>
-            `;
-            elements.gameLog.appendChild(logElement);
-        });
-    }
-
-    // Handle actions
-    handleAction(action) {
-        switch (action) {
-            case 'work':
-                gameState.work();
-                break;
-            case 'study':
-                gameState.study();
-                break;
-            case 'socialize':
-                gameState.socialize();
-                break;
-            case 'rest':
-                gameState.rest();
-                break;
-            case 'gamble':
-                gameState.gamble();
-                break;
-            case 'crime':
-                this.switchTab('crime');
-                break;
-            case 'marry':
-                gameState.marry();
-                break;
-            case 'child':
-                gameState.haveChild();
-                break;
-            case 'buy-car':
-                this.openCarModal();
-                break;
-            case 'buy-property':
-                this.openPropertyModal();
-                break;
+    
+    handleRelation(action) {
+        switch(action) {
             case 'date':
-                this.goOnDate();
+                if (gameState.state.player.money >= 100 && gameState.state.player.energy >= 20) {
+                    gameState.addMoney(-100);
+                    gameState.state.player.energy -= 20;
+                    gameState.state.player.social = Math.min(100, gameState.state.player.social + 20);
+                    gameState.state.player.happiness = Math.min(100, gameState.state.player.happiness + 15);
+                    gameState.addEvent('Went on a date');
+                    gameState.showNotification('Great date! Social and happiness increased.', 'success');
+                } else {
+                    gameState.showNotification('Need money and energy for a date', 'error');
+                }
                 break;
-            case 'meet':
-                this.meetNewPeople();
+                
+            case 'marry':
+                if (gameState.state.player.money >= 5000 && gameState.state.player.age >= 21) {
+                    gameState.addMoney(-5000);
+                    gameState.addEvent('Got married!');
+                    gameState.showNotification('Congratulations on your marriage!', 'success');
+                    gameState.unlockAchievement(5);
+                    
+                    // Add spouse to family if not already there
+                    if (!gameState.state.family.some(m => m.relation === 'Spouse')) {
+                        gameState.state.family.push({
+                            id: Date.now(),
+                            name: 'Spouse',
+                            relation: 'Spouse',
+                            happiness: 90,
+                            icon: 'fas fa-ring'
+                        });
+                        this.loadFamily();
+                    }
+                } else {
+                    gameState.showNotification('Need $5,000 and be at least 21 years old to marry', 'error');
+                }
+                break;
+                
+            case 'child':
+                if (gameState.state.family.some(m => m.relation === 'Spouse') && 
+                    gameState.state.player.money >= 2000) {
+                    gameState.addMoney(-2000);
+                    gameState.addEvent('Had a child!');
+                    gameState.showNotification('Congratulations on the new family member!', 'success');
+                    gameState.unlockAchievement(6);
+                    
+                    gameState.state.family.push({
+                        id: Date.now(),
+                        name: 'Baby',
+                        relation: 'Child',
+                        happiness: 100,
+                        icon: 'fas fa-baby'
+                    });
+                    this.loadFamily();
+                } else {
+                    gameState.showNotification('Need to be married and have $2,000 to have a child', 'error');
+                }
                 break;
         }
         
-        this.updateUI();
+        gameState.updateUI();
     }
-
-    // Handle city locations
-    handleCityLocation(location) {
-        switch (location) {
-            case 'casino':
-                gameState.gamble();
-                break;
-            case 'dealership':
-                this.openCarModal();
-                break;
-            case 'mall':
-                this.openMall();
-                break;
-            case 'gym':
-                this.goToGym();
-                break;
-            case 'college':
-                this.goToCollege();
-                break;
-            case 'nightclub':
-                gameState.socialize();
-                break;
-        }
+    
+    loadDreams() {
+        const dreamsList = document.getElementById('dreams-list');
+        dreamsList.innerHTML = '';
         
-        this.updateUI();
-    }
-
-    // Handle crime
-    handleCrime(crimeType) {
-        const crime = GameData.crimes.find(c => c.id === crimeType);
-        if (crime) {
-            gameState.commitCrime(crime);
-            this.updateUI();
-        }
-    }
-
-    // Handle bank actions
-    handleBankAction(action) {
-        const amount = parseInt(elements.bankAmount.value) || 0;
-        
-        if (amount <= 0) {
-            gameState.addNotification('Please enter a valid amount', 'warning');
-            return;
-        }
-        
-        switch (action) {
-            case 'deposit':
-                gameState.deposit(amount);
-                break;
-            case 'withdraw':
-                gameState.withdraw(amount);
-                break;
-            case 'loan':
-                gameState.takeLoan(amount);
-                break;
-            case 'repay':
-                gameState.repayLoan(amount);
-                break;
-        }
-        
-        elements.bankAmount.value = '';
-        this.updateUI();
-    }
-
-    // Open car modal
-    openCarModal() {
-        const modal = elements.carModal;
-        const carsList = modal.querySelector('#cars-list');
-        
-        carsList.innerHTML = '';
-        GameData.cars.forEach(car => {
-            const carElement = document.createElement('div');
-            carElement.className = 'car-item';
-            carElement.innerHTML = `
-                <h4>${car.image} ${car.name}</h4>
-                <p>Price: $${car.price.toLocaleString()}</p>
-                <p>Speed: ${car.speed} | Comfort: ${car.comfort}</p>
-                <button class="buy-btn" data-id="${car.id}">Buy</button>
+        gameState.state.dreams.forEach(dream => {
+            const dreamElement = document.createElement('div');
+            dreamElement.className = `dream-card ${dream.pursued ? 'achieved' : ''}`;
+            dreamElement.innerHTML = `
+                <div class="dream-header">
+                    <div class="dream-title">
+                        <i class="${dream.icon}"></i>
+                        ${dream.title}
+                    </div>
+                    <div class="dream-cost">$${gameState.formatNumber(dream.cost)}</div>
+                </div>
+                <div class="dream-description">${dream.description}</div>
+                <div class="dream-info">
+                    <small>Requirements: Age ${dream.requirements.age}, Money $${gameState.formatNumber(dream.requirements.money)}</small>
+                </div>
+                <button class="dream-pursue" data-dream-id="${dream.id}" ${dream.pursued ? 'disabled' : ''}>
+                    ${dream.pursued ? 'Achieved!' : 'Pursue Dream'}
+                </button>
             `;
             
-            carElement.querySelector('.buy-btn').addEventListener('click', () => {
-                gameState.buyVehicle(car);
-                this.updateUI();
-            });
+            dreamsList.appendChild(dreamElement);
             
-            carsList.appendChild(carElement);
-        });
-        
-        modal.classList.add('active');
-    }
-
-    // Open property modal
-    openPropertyModal() {
-        const modal = elements.propertyModal;
-        const propertiesList = modal.querySelector('#properties-list');
-        
-        propertiesList.innerHTML = '';
-        GameData.properties.forEach(property => {
-            const propertyElement = document.createElement('div');
-            propertyElement.className = 'property-item';
-            propertyElement.innerHTML = `
-                <h4>${property.image} ${property.name}</h4>
-                <p>Price: $${property.price.toLocaleString()}</p>
-                <p>Rent: $${property.rent.toLocaleString()}/month</p>
-                <p>Comfort: ${property.comfort}</p>
-                <button class="buy-btn" data-id="${property.id}">Buy</button>
-            `;
-            
-            propertyElement.querySelector('.buy-btn').addEventListener('click', () => {
-                gameState.buyProperty(property);
-                this.updateUI();
-            });
-            
-            propertiesList.appendChild(propertyElement);
-        });
-        
-        modal.classList.add('active');
-    }
-
-    // Go on date
-    goOnDate() {
-        if (!gameState.canAfford(500)) {
-            gameState.addNotification("You need $500 for a date!", 'warning');
-            return;
-        }
-        
-        gameState.addMoney(-500);
-        const success = Math.random() > 0.3;
-        
-        if (success) {
-            const name = GameData.familyNames[Math.floor(Math.random() * GameData.familyNames.length)];
-            gameState.relationships.push({
-                name: name,
-                status: 'dating',
-                happiness: 50
-            });
-            gameState.addNotification(`Great date with ${name}!`, 'success');
-            gameState.addLog(`Date with ${name}`);
-        } else {
-            gameState.addNotification('The date didn\'t go well...', 'danger');
-            gameState.addLog('Bad date');
-        }
-        
-        this.updateUI();
-    }
-
-    // Meet new people
-    meetNewPeople() {
-        const name = GameData.familyNames[Math.floor(Math.random() * GameData.familyNames.length)];
-        gameState.relationships.push({
-            name: name,
-            status: 'friend',
-            happiness: 30
-        });
-        
-        gameState.addNotification(`Met ${name}!`, 'success');
-        gameState.addLog(`Met ${name}`);
-        this.updateUI();
-    }
-
-    // Go to gym
-    goToGym() {
-        if (!gameState.canAfford(100)) {
-            gameState.addNotification("You need $100 for gym membership!", 'warning');
-            return;
-        }
-        
-        gameState.addMoney(-100);
-        const healthGain = Math.floor(Math.random() * 10) + 5;
-        gameState.updateStat('health', healthGain);
-        gameState.updateStat('energy', -15);
-        
-        gameState.addNotification(`Worked out at gym! Health +${healthGain}`, 'success');
-        gameState.addLog(`Gym: +${healthGain} health`);
-        this.updateUI();
-    }
-
-    // Go to college
-    goToCollege() {
-        const education = GameData.education.find(e => e.id === 'college');
-        if (!gameState.canAfford(education.cost)) {
-            gameState.addNotification(`You need $${education.cost.toLocaleString()} for college!`, 'warning');
-            return;
-        }
-        
-        gameState.addMoney(-education.cost);
-        gameState.updateStat('intelligence', education.intelligenceGain);
-        gameState.stats.education = 'college';
-        
-        gameState.addNotification(`Graduated from college! Intelligence +${education.intelligenceGain}`, 'success');
-        gameState.addLog(`College graduation`);
-        this.updateUI();
-    }
-
-    // Open mall
-    openMall() {
-        // Show item purchase options
-        const randomItem = GameData.items[Math.floor(Math.random() * GameData.items.length)];
-        
-        if (confirm(`Would you like to buy ${randomItem.name} for $${randomItem.price}?`)) {
-            if (!gameState.canAfford(randomItem.price)) {
-                gameState.addNotification("Not enough money!", 'danger');
-                return;
-            }
-            
-            gameState.addMoney(-randomItem.price);
-            gameState.addItem(randomItem);
-            gameState.addNotification(`Bought ${randomItem.name}!`, 'success');
-            this.updateUI();
-        }
-    }
-
-    // Switch tabs
-    switchTab(tabName) {
-        // Update tab buttons
-        elements.tabBtns.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tabName);
-        });
-        
-        // Update tab contents
-        elements.tabContents.forEach(content => {
-            content.classList.toggle('active', content.id === `${tabName}-tab`);
-        });
-        
-        // Update mobile nav
-        document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tabName);
-        });
-    }
-
-    // Close all modals
-    closeModals() {
-        elements.modals.forEach(modal => modal.classList.remove('active'));
-    }
-
-    // Game loop for periodic updates
-    startGameLoop() {
-        setInterval(() => {
-            // Age progression
-            gameState.stats.age += 0.1;
-            elements.age.textContent = Math.floor(gameState.stats.age);
-            
-            // Natural stat changes
-            if (Math.random() > 0.7) {
-                gameState.updateStat('energy', 1);
-            }
-            if (Math.random() > 0.8) {
-                gameState.updateStat('happiness', -1);
-            }
-            
-            // Business income
-            gameState.businesses.forEach(business => {
-                if (Math.random() > business.risk / 100) {
-                    gameState.addMoney(business.income);
-                    gameState.addLog(`${business.name}: +$${business.income}`);
-                }
-            });
-            
-            // Property rent
-            gameState.properties.forEach(property => {
-                if (property.rented) {
-                    gameState.addMoney(property.rent);
-                }
-            });
-            
-            // Jail time reduction
-            if (gameState.stats.jailTime > 0) {
-                gameState.stats.jailTime--;
-                if (gameState.stats.jailTime === 0) {
-                    gameState.addNotification('You are free from jail!', 'success');
-                }
-            }
-            
-            // Random events
-            if (Math.random() > 0.95) {
-                this.triggerRandomEvent();
-            }
-            
-            this.updateUI();
-        }, 10000); // Update every 10 seconds
-    }
-
-    // Trigger random event
-    triggerRandomEvent() {
-        const event = GameData.events[Math.floor(Math.random() * GameData.events.length)];
-        const modal = elements.eventModal;
-        
-        modal.querySelector('#event-title').textContent = event.title;
-        modal.querySelector('#event-description').textContent = event.description;
-        
-        const choicesContainer = modal.querySelector('#event-choices');
-        choicesContainer.innerHTML = '';
-        
-        event.choices.forEach(choice => {
-            const button = document.createElement('button');
-            button.className = 'action-btn';
-            button.textContent = choice.text;
-            button.addEventListener('click', () => {
-                // Apply effects
-                Object.entries(choice.effect).forEach(([stat, value]) => {
-                    if (stat === 'money') {
-                        gameState.addMoney(value);
-                    } else {
-                        gameState.updateStat(stat, value);
+            if (!dream.pursued) {
+                dreamElement.querySelector('.dream-pursue').addEventListener('click', () => {
+                    if (gameState.pursueDream(dream)) {
+                        this.loadDreams();
+                        this.loadAchievements();
                     }
                 });
-                
-                this.closeModals();
-                this.updateUI();
-                
-                if (choice.nextEvent) {
-                    // Trigger next event if exists
-                    setTimeout(() => this.triggerRandomEvent(), 1000);
-                }
-            });
-            
-            choicesContainer.appendChild(button);
+            }
         });
+    }
+    
+    loadAchievements() {
+        const achievementGrid = document.getElementById('achievement-grid');
+        achievementGrid.innerHTML = '';
         
-        modal.classList.add('active');
+        gameState.state.achievements.forEach(achievement => {
+            const achievementElement = document.createElement('div');
+            achievementElement.className = `achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}`;
+            achievementElement.innerHTML = `
+                <div class="achievement-icon" style="${achievement.unlocked ? '' : 'opacity: 0.5;'}">
+                    <i class="${achievement.icon}"></i>
+                </div>
+                <div class="achievement-name">${achievement.title}</div>
+                ${achievement.unlocked ? '<div class="achievement-badge"><i class="fas fa-check"></i></div>' : ''}
+            `;
+            achievementGrid.appendChild(achievementElement);
+        });
     }
 }
 
 // Initialize game when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.game = new Game();
+    window.game = new LifeAdventureGame();
 });
 
-// Export for debugging
-export { Game, gameState };
+// Export game class
+export default LifeAdventureGame;

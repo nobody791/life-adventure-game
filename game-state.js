@@ -1,463 +1,354 @@
-// Game State Management
 class GameState {
     constructor() {
-        this.stats = {
-            money: 10000,
-            health: 100,
-            intelligence: 50,
-            reputation: 50,
-            age: 18,
-            happiness: 70,
-            energy: 85,
-            jailTime: 0,
-            job: null,
-            education: 'highschool',
-            bankBalance: 0,
-            loan: 0
+        this.state = {
+            player: {
+                name: "Player",
+                age: GAME_SETTINGS.startingAge,
+                money: GAME_SETTINGS.startingMoney,
+                intelligence: GAME_SETTINGS.startingIntelligence,
+                health: GAME_SETTINGS.startingHealth,
+                happiness: 75,
+                energy: 90,
+                social: 60
+            },
+            career: {
+                currentJob: null,
+                experience: 0,
+                level: 1,
+                salary: 0
+            },
+            assets: [...gameData.assets],
+            family: [...gameData.family],
+            investments: [],
+            achievements: gameData.achievements.map(ach => ({...ach})),
+            dreams: gameData.dreams.map(dream => ({...dream, pursued: false})),
+            events: [...gameData.events],
+            gameTime: {
+                day: 1,
+                month: 1,
+                year: 2024,
+                hour: 8,
+                minute: 0
+            },
+            statistics: {
+                totalEarned: 0,
+                totalSpent: 0,
+                jobsWorked: 0,
+                investmentsMade: 0
+            }
         };
-
-        this.inventory = [];
-        this.vehicles = [];
-        this.properties = [];
-        this.businesses = [];
-        this.family = [];
-        this.relationships = [];
-        this.stockPortfolio = {};
-        this.gameLog = [];
-        this.notifications = [];
-        this.currentJob = null;
-        this.currentLocation = 'home';
-        this.lastActionTime = Date.now();
-        this.gameStarted = false;
+        
+        this.loadFromStorage();
+        this.initAutoSave();
     }
-
-    // Update stats with validation
-    updateStat(stat, value) {
-        if (this.stats[stat] !== undefined) {
-            this.stats[stat] += value;
-            
-            // Clamp values
-            if (stat === 'health' || stat === 'happiness' || stat === 'energy') {
-                this.stats[stat] = Math.max(0, Math.min(100, this.stats[stat]));
-            }
-            if (stat === 'reputation') {
-                this.stats[stat] = Math.max(0, Math.min(100, this.stats[stat]));
-            }
-            
-            return true;
+    
+    // Save game state to localStorage
+    saveToStorage() {
+        try {
+            localStorage.setItem('lifeAdventureGame', JSON.stringify(this.state));
+            console.log('Game saved successfully');
+        } catch (error) {
+            console.error('Error saving game:', error);
         }
-        return false;
     }
-
-    // Add money with validation
+    
+    // Load game state from localStorage
+    loadFromStorage() {
+        try {
+            const saved = localStorage.getItem('lifeAdventureGame');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Merge saved state with default state
+                this.state = {
+                    ...this.state,
+                    ...parsed,
+                    player: { ...this.state.player, ...parsed.player },
+                    career: { ...this.state.career, ...parsed.career },
+                    gameTime: { ...this.state.gameTime, ...parsed.gameTime }
+                };
+                console.log('Game loaded successfully');
+            }
+        } catch (error) {
+            console.error('Error loading game:', error);
+        }
+    }
+    
+    // Initialize auto-save
+    initAutoSave() {
+        setInterval(() => {
+            this.saveToStorage();
+            this.showNotification('Game auto-saved', 'success');
+        }, GAME_SETTINGS.autoSaveInterval);
+    }
+    
+    // Update game time (called every tick)
+    updateGameTime() {
+        this.state.gameTime.minute += 30;
+        
+        if (this.state.gameTime.minute >= 60) {
+            this.state.gameTime.minute = 0;
+            this.state.gameTime.hour += 1;
+            
+            if (this.state.gameTime.hour >= 24) {
+                this.state.gameTime.hour = 0;
+                this.state.gameTime.day += 1;
+                
+                // Check for monthly salary
+                if (this.state.gameTime.day >= 30) {
+                    this.state.gameTime.day = 1;
+                    this.state.gameTime.month += 1;
+                    this.processMonthlySalary();
+                    
+                    if (this.state.gameTime.month > 12) {
+                        this.state.gameTime.month = 1;
+                        this.state.gameTime.year += 1;
+                        this.state.player.age += 1;
+                        this.checkAgeEvents();
+                    }
+                }
+            }
+        }
+    }
+    
+    // Process monthly salary
+    processMonthlySalary() {
+        if (this.state.career.salary > 0) {
+            this.addMoney(this.state.career.salary);
+            this.addEvent(`Salary received: $${this.formatNumber(this.state.career.salary)}`);
+        }
+        
+        // Process investments
+        this.state.investments.forEach(investment => {
+            const returnAmount = Math.floor(investment.amount * (investment.return / 100) / 12);
+            if (returnAmount > 0) {
+                this.addMoney(returnAmount);
+                this.addEvent(`Investment return: $${this.formatNumber(returnAmount)}`);
+            }
+        });
+    }
+    
+    // Check for age-related events
+    checkAgeEvents() {
+        const age = this.state.player.age;
+        
+        if (age === 21) {
+            this.addEvent('You turned 21! New opportunities unlocked!');
+        } else if (age === 30) {
+            this.addEvent('Welcome to your 30s! Time to build your legacy.');
+        } else if (age === 40) {
+            this.addEvent('You\'re 40! Mid-life achievements incoming!');
+        }
+        
+        // Update age progress bar
+        const ageProgress = (age / GAME_SETTINGS.maxAge) * 100;
+        document.getElementById('age-progress').style.width = `${ageProgress}%`;
+    }
+    
+    // Add money to player
     addMoney(amount) {
-        this.stats.money += amount;
-        if (this.stats.money < 0) {
-            this.stats.money = 0;
-            return false;
-        }
-        return true;
+        this.state.player.money += amount;
+        this.state.statistics.totalEarned += amount > 0 ? amount : 0;
+        this.state.statistics.totalSpent += amount < 0 ? Math.abs(amount) : 0;
+        this.updateUI();
     }
-
+    
     // Check if player can afford something
     canAfford(amount) {
-        return this.stats.money >= amount;
+        return this.state.player.money >= amount;
     }
-
-    // Add item to inventory
-    addItem(item) {
-        this.inventory.push({
-            ...item,
-            id: Date.now() + Math.random(),
-            acquired: new Date().toISOString()
-        });
+    
+    // Add intelligence
+    addIntelligence(amount) {
+        this.state.player.intelligence = Math.min(100, this.state.player.intelligence + amount);
+        this.updateUI();
     }
-
-    // Remove item from inventory
-    removeItem(itemId) {
-        this.inventory = this.inventory.filter(item => item.id !== itemId);
+    
+    // Add health
+    addHealth(amount) {
+        this.state.player.health = Math.min(100, this.state.player.health + amount);
+        this.updateUI();
     }
-
-    // Buy a vehicle
-    buyVehicle(vehicle) {
-        if (!this.canAfford(vehicle.price)) {
-            this.addNotification("You don't have enough money!", 'danger');
-            return false;
-        }
-        
-        this.addMoney(-vehicle.price);
-        this.vehicles.push({
-            ...vehicle,
-            id: Date.now() + Math.random(),
-            bought: new Date().toISOString()
-        });
-        
-        this.addNotification(`Bought ${vehicle.name} for $${vehicle.price.toLocaleString()}!`, 'success');
-        this.addLog(`Purchased ${vehicle.name}`);
-        return true;
-    }
-
-    // Buy a property
-    buyProperty(property) {
-        if (!this.canAfford(property.price)) {
-            this.addNotification("You don't have enough money!", 'danger');
-            return false;
-        }
-        
-        this.addMoney(-property.price);
-        this.properties.push({
-            ...property,
-            id: Date.now() + Math.random(),
-            bought: new Date().toISOString(),
-            rented: false
-        });
-        
-        this.addNotification(`Bought ${property.name} for $${property.price.toLocaleString()}!`, 'success');
-        this.addLog(`Purchased ${property.name}`);
-        return true;
-    }
-
-    // Start a business
-    startBusiness(business) {
-        if (!this.canAfford(business.price)) {
-            this.addNotification("You don't have enough money!", 'danger');
-            return false;
-        }
-        
-        this.addMoney(-business.price);
-        this.businesses.push({
-            ...business,
-            id: Date.now() + Math.random(),
-            started: new Date().toISOString(),
-            profit: 0
-        });
-        
-        this.addNotification(`Started ${business.name} business!`, 'success');
-        this.addLog(`Started ${business.name} business`);
-        return true;
-    }
-
-    // Commit crime
-    commitCrime(crime) {
-        const successChance = 100 - crime.risk;
-        const success = Math.random() * 100 < successChance;
-        
-        if (success) {
-            const reward = Math.floor(Math.random() * (crime.maxReward - crime.minReward + 1)) + crime.minReward;
-            this.addMoney(reward);
-            this.updateStat('reputation', -crime.reputationLoss);
-            
-            this.addNotification(`Successfully committed ${crime.name}! Got $${reward.toLocaleString()}`, 'success');
-            this.addLog(`Committed ${crime.name}: +$${reward}`);
-        } else {
-            const jailChance = crime.jailChance;
-            if (Math.random() * 100 < jailChance) {
-                this.stats.jailTime += crime.jailTime;
-                this.addNotification(`Caught! Sent to jail for ${crime.jailTime} days!`, 'danger');
-                this.addLog(`Arrested for ${crime.name}: ${crime.jailTime} days jail`);
-            } else {
-                this.addNotification(`Failed ${crime.name} but escaped!`, 'warning');
-                this.addLog(`Failed ${crime.name}`);
-            }
-            this.updateStat('reputation', -crime.reputationLoss);
-        }
-        
-        return success;
-    }
-
-    // Work at job
-    work() {
-        if (!this.currentJob) {
-            this.addNotification("You don't have a job!", 'warning');
-            return false;
-        }
-        
-        if (this.stats.energy < this.currentJob.energyCost) {
-            this.addNotification("Not enough energy to work!", 'warning');
-            return false;
-        }
-        
-        const salary = this.currentJob.salary;
-        this.addMoney(salary);
-        this.updateStat('energy', -this.currentJob.energyCost);
-        this.updateStat('happiness', -5);
-        
-        this.addNotification(`Worked and earned $${salary.toLocaleString()}`, 'success');
-        this.addLog(`Work: +$${salary}`);
-        return true;
-    }
-
-    // Study
-    study() {
-        if (this.stats.energy < 20) {
-            this.addNotification("Not enough energy to study!", 'warning');
-            return false;
-        }
-        
-        const intelGain = Math.floor(Math.random() * 5) + 5;
-        this.updateStat('intelligence', intelGain);
-        this.updateStat('energy', -20);
-        
-        this.addNotification(`Studied and gained ${intelGain} intelligence`, 'success');
-        this.addLog(`Study: +${intelGain} intelligence`);
-        return true;
-    }
-
-    // Socialize
-    socialize() {
-        if (this.stats.energy < 15) {
-            this.addNotification("Not enough energy to socialize!", 'warning');
-            return false;
-        }
-        
-        const happinessGain = Math.floor(Math.random() * 15) + 5;
-        const reputationGain = Math.floor(Math.random() * 5) + 1;
-        
-        this.updateStat('happiness', happinessGain);
-        this.updateStat('reputation', reputationGain);
-        this.updateStat('energy', -15);
-        
-        this.addNotification(`Socialized and improved happiness`, 'success');
-        this.addLog(`Socialize: +${happinessGain} happiness`);
-        return true;
-    }
-
-    // Rest
-    rest() {
-        const energyGain = Math.floor(Math.random() * 30) + 20;
-        const healthGain = Math.floor(Math.random() * 5) + 1;
-        
-        this.updateStat('energy', energyGain);
-        this.updateStat('health', healthGain);
-        
-        this.addNotification(`Rested and recovered energy`, 'success');
-        this.addLog(`Rest: +${energyGain} energy`);
-        return true;
-    }
-
-    // Gamble
-    gamble() {
-        if (!this.canAfford(1000)) {
-            this.addNotification("You need at least $1,000 to gamble!", 'warning');
-            return false;
-        }
-        
-        const stake = Math.min(1000, this.stats.money);
-        this.addMoney(-stake);
-        
-        const win = Math.random() > 0.55; // 45% chance to win
-        if (win) {
-            const winAmount = stake * 2;
-            this.addMoney(winAmount);
-            this.updateStat('happiness', 10);
-            this.addNotification(`Won $${winAmount.toLocaleString()} gambling!`, 'success');
-            this.addLog(`Gambling: Won $${winAmount}`);
-        } else {
-            this.updateStat('happiness', -10);
-            this.addNotification(`Lost $${stake.toLocaleString()} gambling!`, 'danger');
-            this.addLog(`Gambling: Lost $${stake}`);
-        }
-        
-        return win;
-    }
-
-    // Bank deposit
-    deposit(amount) {
-        if (!this.canAfford(amount)) {
-            this.addNotification("Not enough cash!", 'danger');
-            return false;
-        }
-        
-        this.addMoney(-amount);
-        this.stats.bankBalance += amount;
-        
-        this.addNotification(`Deposited $${amount.toLocaleString()} to bank`, 'success');
-        this.addLog(`Deposit: $${amount}`);
-        return true;
-    }
-
-    // Bank withdraw
-    withdraw(amount) {
-        if (this.stats.bankBalance < amount) {
-            this.addNotification("Not enough funds in bank!", 'danger');
-            return false;
-        }
-        
-        this.stats.bankBalance -= amount;
-        this.addMoney(amount);
-        
-        this.addNotification(`Withdrew $${amount.toLocaleString()} from bank`, 'success');
-        this.addLog(`Withdraw: $${amount}`);
-        return true;
-    }
-
-    // Take loan
-    takeLoan(amount) {
-        const maxLoan = this.stats.money * 10;
-        if (amount > maxLoan) {
-            this.addNotification(`Maximum loan amount is $${maxLoan.toLocaleString()}`, 'warning');
-            return false;
-        }
-        
-        this.stats.loan += amount;
-        this.addMoney(amount);
-        
-        this.addNotification(`Took loan of $${amount.toLocaleString()}`, 'success');
-        this.addLog(`Loan: +$${amount}`);
-        return true;
-    }
-
-    // Repay loan
-    repayLoan(amount) {
-        if (!this.canAfford(amount)) {
-            this.addNotification("Not enough money to repay!", 'danger');
-            return false;
-        }
-        
-        const repayAmount = Math.min(amount, this.stats.loan);
-        this.addMoney(-repayAmount);
-        this.stats.loan -= repayAmount;
-        
-        this.addNotification(`Repaid $${repayAmount.toLocaleString()} of loan`, 'success');
-        this.addLog(`Loan repayment: $${repayAmount}`);
-        return true;
-    }
-
-    // Get married
-    marry() {
-        if (this.family.some(member => member.relation === 'spouse')) {
-            this.addNotification("You're already married!", 'warning');
-            return false;
-        }
-        
-        if (!this.canAfford(20000)) {
-            this.addNotification("You need $20,000 for a wedding!", 'danger');
-            return false;
-        }
-        
-        this.addMoney(-20000);
-        const spouseName = GameData.familyNames[Math.floor(Math.random() * GameData.familyNames.length)];
-        
-        this.family.push({
-            name: spouseName,
-            relation: 'spouse',
-            happiness: 50
-        });
-        
-        this.updateStat('happiness', 30);
-        this.addNotification(`Married ${spouseName}!`, 'success');
-        this.addLog(`Married ${spouseName}`);
-        return true;
-    }
-
-    // Have child
-    haveChild() {
-        if (!this.family.some(member => member.relation === 'spouse')) {
-            this.addNotification("You need to be married first!", 'warning');
-            return false;
-        }
-        
-        if (!this.canAfford(10000)) {
-            this.addNotification("You need $10,000 for child expenses!", 'danger');
-            return false;
-        }
-        
-        this.addMoney(-10000);
-        const childName = GameData.familyNames[Math.floor(Math.random() * GameData.familyNames.length)];
-        
-        this.family.push({
-            name: childName,
-            relation: 'child',
-            age: 0
-        });
-        
-        this.updateStat('happiness', 20);
-        this.addNotification(`Had a child named ${childName}!`, 'success');
-        this.addLog(`New child: ${childName}`);
-        return true;
-    }
-
-    // Add notification
-    addNotification(message, type = 'info') {
-        this.notifications.unshift({
-            id: Date.now() + Math.random(),
-            message,
-            type,
-            time: new Date().toISOString()
-        });
-        
-        // Keep only last 10 notifications
-        if (this.notifications.length > 10) {
-            this.notifications.pop();
-        }
-    }
-
-    // Add to game log
-    addLog(message) {
-        this.gameLog.unshift({
-            id: Date.now() + Math.random(),
-            message,
-            time: new Date().toLocaleTimeString()
-        });
-        
-        // Keep only last 20 log entries
-        if (this.gameLog.length > 20) {
-            this.gameLog.pop();
-        }
-    }
-
-    // Save game state to localStorage
-    save() {
-        const saveData = {
-            stats: this.stats,
-            inventory: this.inventory,
-            vehicles: this.vehicles,
-            properties: this.properties,
-            businesses: this.businesses,
-            family: this.family,
-            relationships: this.relationships,
-            stockPortfolio: this.stockPortfolio,
-            savedAt: new Date().toISOString()
+    
+    // Add event to log
+    addEvent(title, description = '') {
+        const event = {
+            id: Date.now(),
+            title,
+            description,
+            icon: 'fas fa-bell',
+            time: 'Just now'
         };
         
-        localStorage.setItem('lifeAdventureSave', JSON.stringify(saveData));
-        this.addNotification('Game saved successfully!', 'success');
+        this.state.events.unshift(event);
+        
+        // Keep only last 10 events
+        if (this.state.events.length > 10) {
+            this.state.events.pop();
+        }
+        
+        // Update UI if on home section
+        if (document.getElementById('home-section').classList.contains('active')) {
+            this.updateEventsUI();
+        }
     }
-
-    // Load game state from localStorage
-    load() {
-        const saveData = localStorage.getItem('lifeAdventureSave');
-        if (saveData) {
-            try {
-                const loaded = JSON.parse(saveData);
-                Object.assign(this.stats, loaded.stats);
-                this.inventory = loaded.inventory || [];
-                this.vehicles = loaded.vehicles || [];
-                this.properties = loaded.properties || [];
-                this.businesses = loaded.businesses || [];
-                this.family = loaded.family || [];
-                this.relationships = loaded.relationships || [];
-                this.stockPortfolio = loaded.stockPortfolio || {};
-                
-                this.addNotification('Game loaded successfully!', 'success');
-                return true;
-            } catch (error) {
-                console.error('Failed to load save:', error);
-                this.addNotification('Failed to load save game', 'danger');
+    
+    // Apply for job
+    applyForJob(job) {
+        if (this.state.player.age >= job.requirements.age && 
+            this.state.player.intelligence >= job.requirements.intelligence) {
+            
+            this.state.career.currentJob = job;
+            this.state.career.salary = job.salary;
+            this.state.statistics.jobsWorked++;
+            
+            // Unlock achievement if first job
+            if (this.state.statistics.jobsWorked === 1) {
+                this.unlockAchievement(1);
             }
+            
+            this.addEvent(`You got hired as ${job.title}!`);
+            this.showNotification(`Congratulations! You're now a ${job.title}`, 'success');
+            return true;
+        } else {
+            this.showNotification('You don\'t meet the requirements for this job', 'error');
+            return false;
         }
-        return false;
     }
-
-    // Reset game
-    reset() {
-        if (confirm('Are you sure you want to reset? All progress will be lost!')) {
-            localStorage.removeItem('lifeAdventureSave');
-            window.location.reload();
+    
+    // Make investment
+    makeInvestment(investment, amount) {
+        if (this.canAfford(amount)) {
+            this.addMoney(-amount);
+            
+            const playerInvestment = {
+                ...investment,
+                amount,
+                date: { ...this.state.gameTime }
+            };
+            
+            this.state.investments.push(playerInvestment);
+            this.state.statistics.investmentsMade++;
+            this.addEvent(`Invested $${this.formatNumber(amount)} in ${investment.title}`);
+            this.showNotification('Investment successful!', 'success');
+            return true;
+        } else {
+            this.showNotification('Insufficient funds', 'error');
+            return false;
         }
+    }
+    
+    // Pursue dream
+    pursueDream(dream) {
+        if (this.canAfford(dream.cost) && 
+            this.state.player.age >= dream.requirements.age &&
+            this.state.player.money >= dream.requirements.money) {
+            
+            this.addMoney(-dream.cost);
+            dream.pursued = true;
+            this.addEvent(`You achieved your dream: ${dream.title}!`);
+            this.showNotification('Dream achieved!', 'success');
+            return true;
+        } else {
+            this.showNotification('You cannot pursue this dream yet', 'error');
+            return false;
+        }
+    }
+    
+    // Unlock achievement
+    unlockAchievement(achievementId) {
+        const achievement = this.state.achievements.find(a => a.id === achievementId);
+        if (achievement && !achievement.unlocked) {
+            achievement.unlocked = true;
+            this.addEvent(`Achievement unlocked: ${achievement.title}`);
+            this.showNotification(`Achievement unlocked: ${achievement.title}!`, 'success');
+        }
+    }
+    
+    // Show notification
+    showNotification(message, type = 'info') {
+        const notificationCenter = document.getElementById('notification-center');
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            <div>
+                <p style="font-weight: 600; margin-bottom: 5px;">${message}</p>
+                <small>${this.getFormattedTime()}</small>
+            </div>
+        `;
+        
+        notificationCenter.appendChild(notification);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideInRight 0.3s ease reverse';
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
+    }
+    
+    // Format number with commas
+    formatNumber(num) {
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+    
+    // Get formatted time string
+    getFormattedTime() {
+        const time = this.state.gameTime;
+        const dayName = DAYS[time.day % 7];
+        const monthName = MONTHS[time.month - 1];
+        const hour = time.hour.toString().padStart(2, '0');
+        const minute = time.minute.toString().padStart(2, '0');
+        return `${dayName}, ${hour}:${min0}`;
+    }
+    
+    // Update all UI elements
+    updateUI() {
+        // Update player stats
+        document.getElementById('money').textContent = this.formatNumber(this.state.player.money);
+        document.getElementById('intelligence').textContent = this.state.player.intelligence;
+        document.getElementById('health').textContent = this.state.player.health;
+        document.getElementById('age').textContent = this.state.player.age;
+        
+        // Update status bars
+        document.querySelector('.status-item:nth-child(1) .status-fill').style.width = `${this.state.player.happiness}%`;
+        document.querySelector('.status-item:nth-child(1) .status-value').textContent = `${this.state.player.happiness}%`;
+        document.querySelector('.status-item:nth-child(2) .status-fill').style.width = `${this.state.player.energy}%`;
+        document.querySelector('.status-item:nth-child(2) .status-value').textContent = `${this.state.player.energy}%`;
+        document.querySelector('.status-item:nth-child(3) .status-fill').style.width = `${this.state.player.social}%`;
+        document.querySelector('.status-item:nth-child(3) .status-value').textContent = `${this.state.player.social}%`;
+        
+        // Update current time
+        document.getElementById('current-time').textContent = this.getFormattedTime();
+        
+        // Update age progress
+        const ageProgress = (this.state.player.age / GAME_SETTINGS.maxAge) * 100;
+        document.getElementById('age-progress').style.width = `${ageProgress}%`;
+    }
+    
+    // Update events UI
+    updateEventsUI() {
+        const eventsList = document.getElementById('events-list');
+        eventsList.innerHTML = '';
+        
+        this.state.events.slice(0, 5).forEach(event => {
+            const eventElement = document.createElement('div');
+            eventElement.className = 'event-item';
+            eventElement.innerHTML = `
+                <div class="event-icon">
+                    <i class="${event.icon}"></i>
+                </div>
+                <div class="event-content">
+                    <div class="event-title">${event.title}</div>
+                    <div class="event-time">${event.time}</div>
+                </div>
+            `;
+            eventsList.appendChild(eventElement);
+        });
     }
 }
 
-// Create global game state instance
+// Initialize game state
 const gameState = new GameState();
+
+// Export for other modules
 export default gameState;
